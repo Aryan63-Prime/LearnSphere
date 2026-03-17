@@ -24,7 +24,7 @@ AI-Powered Learning Platform with multiple learning modalities powered by Google
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/LearnSphere.git
+   git clone https://github.com/Aryan63-Prime/LearnSphere.git
    cd LearnSphere
    ```
 
