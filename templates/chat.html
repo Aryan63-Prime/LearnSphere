@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Ask Your Notes{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">💬</div>
+    <h1 class="page-title"><span class="gradient-text">Ask Your Notes</span></h1>
+    <p class="page-subtitle">Upload PDFs and ask questions grounded in your own study material</p>
+</section>
+
+<section class="chat-container">
+    <!-- ── Sidebar: Uploaded Docs ── -->
+    <aside class="chat-sidebar" id="chat-sidebar">
+        <div class="sidebar-header">
+            <h3>📁 Documents</h3>
+            <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle sidebar">☰</button>
+        </div>
+
+        <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📄</div>
+            <p class="upload-text">Drag & drop PDF here</p>
+            <p class="upload-hint">or click to browse</p>
+            <input type="file" id="file-input" accept=".pdf" hidden>
+        </div>
+
+        <div id="upload-progress" class="upload-progress hidden">
+            <div class="upload-progress-bar">
+                <div class="upload-progress-fill" id="upload-fill"></div>
+            </div>
+            <span class="upload-status" id="upload-status">Processing...</span>
+        </div>
+
+        <div class="docs-list" id="docs-list">
+            <p class="docs-empty" id="docs-empty">No documents uploaded yet</p>
+        </div>
+    </aside>
+
+    <!-- ── Main Chat Area ── -->
+    <div class="chat-main">
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome">
+                <div class="welcome-icon">🎓</div>
+                <h3>Welcome to Ask Your Notes</h3>
+                <p>Upload a PDF from the sidebar, then ask questions about its content. The AI will answer using only
+                    your documents.</p>
+                <div class="welcome-steps">
+                    <div class="welcome-step">
+                        <span class="step-num">1</span>
+                        <span>Upload a PDF document</span>
+                    </div>
+                    <div class="welcome-step">
+                        <span class="step-num">2</span>
+                        <span>Wait for processing</span>
+                    </div>
+                    <div class="welcome-step">
+                        <span class="step-num">3</span>
+                        <span>Ask questions about your notes</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form class="chat-input-area" id="chat-form">
+            <input type="text" id="chat-input" placeholder="Ask about your uploaded documents..." autocomplete="off"
+                required>
+            <button type="submit" class="chat-send-btn" id="chat-send" title="Send">
+                <span class="send-icon">➤</span>
+                <span class="btn-loader"></span>
+            </button>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // ── State ─────────────────────────────────────────────────────
+    const collection = 'default';
+    let hasDocuments = false;
+
+    // ── Upload Zone ───────────────────────────────────────────────
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.toLowerCase().endsWith('.pdf')) {
+            uploadFile(file);
+        } else {
+            showToast('Only PDF files are supported', 'error');
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+    });
+
+    async function uploadFile(file) {
+        const progressEl = document.getElementById('upload-progress');
+        const fillEl = document.getElementById('upload-fill');
+        const statusEl = document.getElementById('upload-status');
+
+        progressEl.classList.remove('hidden');
+        fillEl.style.width = '30%';
+        statusEl.textContent = `Processing ${file.name}...`;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('collection', collection);
+
+        try {
+            fillEl.style.width = '60%';
+
+            const res = await fetch('/api/upload-pdf', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            fillEl.style.width = '100%';
+
+            if (data.success) {
+                statusEl.textContent = `✓ ${data.num_chunks} chunks from ${data.num_pages} pages`;
+                hasDocuments = true;
+                addDocToList(data.filename, data.num_chunks, data.num_pages);
+                document.getElementById('docs-empty').classList.add('hidden');
+                showToast(`"${data.filename}" uploaded and indexed!`);
+
+                // Hide welcome
+                const welcome = document.querySelector('.chat-welcome');
+                if (welcome) welcome.remove();
+            } else {
+                statusEl.textContent = `✗ ${data.error}`;
+                showToast(data.error, 'error');
+            }
+
+            setTimeout(() => progressEl.classList.add('hidden'), 3000);
+        } catch (err) {
+            statusEl.textContent = `✗ Upload failed`;
+            showToast('Upload failed: ' + err.message, 'error');
+            setTimeout(() => progressEl.classList.add('hidden'), 3000);
+        }
+    }
+
+    function addDocToList(filename, chunks, pages) {
+        const list = document.getElementById('docs-list');
+        const item = document.createElement('div');
+        item.className = 'doc-item';
+        item.innerHTML = `
+        <div class="doc-icon">📄</div>
+        <div class="doc-info">
+            <span class="doc-name">${filename}</span>
+            <span class="doc-meta">${pages} pages • ${chunks} chunks</span>
+        </div>
+    `;
+        list.appendChild(item);
+    }
+
+    // ── Chat ──────────────────────────────────────────────────────
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Add user message
+        appendMessage('user', message);
+        chatInput.value = '';
+
+        // Disable input
+        const sendBtn = document.getElementById('chat-send');
+        sendBtn.classList.add('loading');
+        chatInput.disabled = true;
+
+        // Add typing indicator
+        const typingId = appendTyping();
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, collection })
+            });
+
+            const data = await res.json();
+            removeTyping(typingId);
+
+            if (data.success) {
+                appendMessage('ai', data.answer, data.sources);
+            } else {
+                appendMessage('ai', `⚠️ ${data.error}`);
+            }
+        } catch (err) {
+            removeTyping(typingId);
+            appendMessage('ai', `⚠️ Network error: ${err.message}`);
+        }
+
+        sendBtn.classList.remove('loading');
+        chatInput.disabled = false;
+        chatInput.focus();
+    });
+
+    function appendMessage(role, content, sources = null) {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role}`;
+
+        const avatar = role === 'user' ? '👤' : '🤖';
+        let html = `<div class="bubble-avatar">${avatar}</div><div class="bubble-content">`;
+
+        if (role === 'ai' && typeof marked !== 'undefined') {
+            html += marked.parse(content);
+        } else {
+            html += `<p>${content}</p>`;
+        }
+
+        // Sources panel
+        if (sources && sources.length > 0) {
+            html += `<div class="sources-panel">
+            <button class="sources-toggle" onclick="this.parentElement.classList.toggle('expanded')">
+                📚 ${sources.length} source${sources.length > 1 ? 's' : ''} used
+            </button>
+            <div class="sources-list">`;
+            sources.forEach(s => {
+                html += `<div class="source-item">
+                <span class="source-badge">[${s.index}]</span>
+                <span class="source-file">${s.source_file}</span>
+                <span class="source-page">Page ${s.page_num}</span>
+                <p class="source-snippet">${s.snippet}</p>
+            </div>`;
+            });
+            html += `</div></div>`;
+        }
+
+        html += `</div>`;
+        bubble.innerHTML = html;
+        chatMessages.appendChild(bubble);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendTyping() {
+        const id = 'typing-' + Date.now();
+        const el = document.createElement('div');
+        el.className = 'chat-bubble ai typing-bubble';
+        el.id = id;
+        el.innerHTML = `<div class="bubble-avatar">🤖</div><div class="bubble-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+        chatMessages.appendChild(el);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return id;
+    }
+
+    function removeTyping(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    // ── Sidebar Toggle ────────────────────────────────────────────
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+        document.getElementById('chat-sidebar').classList.toggle('collapsed');
+    });
+
+    // ── Load existing collections on page load ────────────────────
+    (async () => {
+        try {
+            const res = await fetch('/api/collections');
+            const data = await res.json();
+            if (data.success && data.collections.length > 0) {
+                document.getElementById('docs-empty').classList.add('hidden');
+                hasDocuments = true;
+                data.collections.forEach(c => {
+                    addDocToList(c.name, c.num_chunks, '?');
+                });
+            }
+        } catch (e) { /* silently fail */ }
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+Original:
+## Header
+This is a paragraph.
+
+* List item 1
+* List item 2
+
+
+Normalized (for_audio=False):
+## Header
+This is a paragraph.
+
+* List item 1
+* List item 2
+
+Normalized (for_audio=True):
+Header This is a paragraph. List item 1 List item 2

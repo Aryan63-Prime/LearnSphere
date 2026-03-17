@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}Visual Learning{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">🎨</div>
+    <h1 class="page-title"><span class="gradient-text">Visual Learning</span></h1>
+    <p class="page-subtitle">Understand concepts through AI-generated diagrams</p>
+</section>
+
+<section class="generator-section">
+    <div class="generator-card">
+        <form id="image-form" class="generator-form">
+            <div class="form-group">
+                <label for="concept">What concept would you like to visualize?</label>
+                <input type="text" id="concept" name="concept"
+                    placeholder="e.g., convolutional neural network architecture..." required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+                <span class="btn-text">Generate Visualizations</span>
+                <span class="btn-loader"></span>
+            </button>
+        </form>
+    </div>
+
+    <div id="result-container" class="result-container hidden">
+        <div class="result-header">
+            <h2>Visual Explanations</h2>
+            <span id="api-info" class="api-badge"></span>
+        </div>
+        <div id="result-content" class="result-content markdown-body"></div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    console.log("Image Generator Script Loaded");
+
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
+    document.getElementById('image-form').addEventListener('submit', async (e) => {
+        console.log("Form submitted, preventing default...");
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const resultContainer = document.getElementById('result-container');
+        const resultContent = document.getElementById('result-content');
+
+        btn.classList.add('loading');
+        resultContainer.classList.add('hidden');
+        resultContent.innerHTML = ''; // Clear previous results
+
+        const concept = document.getElementById('concept').value;
+
+        try {
+            const response = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ concept })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Parse markdown and render text content first
+                resultContent.innerHTML = marked.parse(data.content);
+
+                // Display API info badge
+                const apiInfo = document.getElementById('api-info');
+                apiInfo.innerHTML = `⚡ ${data.api_used} (${data.model}) • ${data.response_time}s`;
+                apiInfo.className = 'api-badge ' + (data.api_used.includes('Gemini') ? 'gemini' : 'perplexity');
+
+                // ALWAYS show container before attempting mermaid render
+                resultContainer.classList.remove('hidden');
+
+                // Render mermaid diagrams with error handling
+                const mermaidBlocks = resultContent.querySelectorAll('code.language-mermaid');
+                if (mermaidBlocks.length > 0) {
+                    for (let i = 0; i < mermaidBlocks.length; i++) {
+                        const block = mermaidBlocks[i];
+                        const code = block.textContent;
+                        const pre = block.parentElement;
+
+                        const div = document.createElement('div');
+                        div.className = 'mermaid';
+                        div.innerHTML = code;
+
+                        pre.replaceWith(div);
+                    }
+
+                    try {
+                        await mermaid.run({
+                            nodes: resultContent.querySelectorAll('.mermaid')
+                        });
+                    } catch (mermaidErr) {
+                        console.error('Mermaid rendering failed:', mermaidErr);
+                        const errorDiv = document.createElement('div');
+                        errorDiv.style.color = '#ff6b6b';
+                        errorDiv.style.padding = '10px';
+                        errorDiv.style.background = 'rgba(255, 107, 107, 0.1)';
+                        errorDiv.style.borderRadius = '8px';
+                        errorDiv.style.marginBottom = '15px';
+                        errorDiv.innerHTML = '<strong>Drawing Error:</strong> The AI generated an invalid diagram syntax. The code is shown below.';
+                        resultContent.prepend(errorDiv);
+                    }
+                }
+            } else {
+                showError(data.error || 'Failed to generate visualizations');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('Generation failed. Please try again.');
+        } finally {
+            btn.classList.remove('loading');
+        }
+    });
+
+    function showError(message) {
+        // Simple alert fallback if showError isn't defined globally yet
+        if (window.showError) {
+            window.showError(message);
+        } else {
+            alert(message);
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}

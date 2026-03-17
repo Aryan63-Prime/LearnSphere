@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Knowledge Graph{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">🕸️</div>
+    <h1 class="page-title"><span class="gradient-text">Knowledge Graph</span></h1>
+    <p class="page-subtitle">Visualize relationships between concepts with AI-generated knowledge maps</p>
+</section>
+
+<section class="generator-section">
+    <div class="generator-card" style="max-width:600px; margin:0 auto;">
+        <form id="kg-form" class="generator-form">
+            <div class="form-group">
+                <label for="kg-topic">What topic do you want to map?</label>
+                <input type="text" id="kg-topic" name="topic"
+                    placeholder="e.g., machine learning, photosynthesis, web development..." required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+                <span class="btn-text">Generate Knowledge Graph</span>
+                <span class="btn-loader"></span>
+            </button>
+        </form>
+    </div>
+
+    <div id="kg-container" class="hidden" style="margin-top: var(--space-xl);">
+        <div id="kg-network" style="
+            width: 100%;
+            height: 600px;
+            background: rgba(10, 6, 20, 0.6);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-xl);
+        "></div>
+        <div id="kg-meta" class="result-meta" style="margin-top: var(--space-md); text-align:center;">
+            <span id="kg-info" class="api-badge"></span>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+    const GROUP_COLORS = [
+        { background: 'rgba(244,114,182,0.3)', border: 'rgba(244,114,182,0.8)', font: '#f472b6', highlight: { background: 'rgba(244,114,182,0.5)', border: '#f472b6' } },
+        { background: 'rgba(167,139,250,0.3)', border: 'rgba(167,139,250,0.8)', font: '#a78bfa', highlight: { background: 'rgba(167,139,250,0.5)', border: '#a78bfa' } },
+        { background: 'rgba(78,206,196,0.3)', border: 'rgba(78,206,196,0.8)', font: '#4ecec4', highlight: { background: 'rgba(78,206,196,0.5)', border: '#4ecec4' } },
+        { background: 'rgba(245,197,66,0.3)', border: 'rgba(245,197,66,0.8)', font: '#f5c542', highlight: { background: 'rgba(245,197,66,0.5)', border: '#f5c542' } },
+        { background: 'rgba(255,107,107,0.3)', border: 'rgba(255,107,107,0.8)', font: '#ff6b6b', highlight: { background: 'rgba(255,107,107,0.5)', border: '#ff6b6b' } },
+    ];
+
+    document.getElementById('kg-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const topic = document.getElementById('kg-topic').value;
+
+        btn.classList.add('loading');
+        document.getElementById('kg-container').classList.add('hidden');
+
+        try {
+            const res = await fetch('/api/generate-knowledge-graph', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                renderGraph(data.graph);
+                document.getElementById('kg-container').classList.remove('hidden');
+                document.getElementById('kg-info').textContent =
+                    `${data.graph.nodes.length} nodes · ${data.graph.edges.length} edges · ${data.api_used || 'AI'}`;
+            } else {
+                if (typeof showToast === 'function') showToast(data.error, 'error');
+                else alert(data.error);
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('Generation failed', 'error');
+        }
+
+        btn.classList.remove('loading');
+    });
+
+    function renderGraph(graphData) {
+        const groupMap = {};
+        let groupIdx = 0;
+
+        const nodes = graphData.nodes.map(n => {
+            if (!(n.group in groupMap)) {
+                groupMap[n.group] = groupIdx++;
+            }
+            const gIdx = groupMap[n.group] % GROUP_COLORS.length;
+            const colors = GROUP_COLORS[gIdx];
+
+            return {
+                id: n.id,
+                label: n.label,
+                group: n.group,
+                color: { background: colors.background, border: colors.border, highlight: colors.highlight },
+                font: { color: colors.font, size: 14, face: 'Poppins' },
+                shape: 'dot',
+                size: 20,
+                borderWidth: 2,
+            };
+        });
+
+        const edges = graphData.edges.map(e => ({
+            from: e.from,
+            to: e.to,
+            label: e.label || '',
+            color: { color: 'rgba(255,255,255,0.15)', highlight: 'rgba(255,255,255,0.4)' },
+            font: { color: 'rgba(255,255,255,0.5)', size: 10, face: 'Poppins', strokeWidth: 0 },
+            arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+            smooth: { type: 'curvedCW', roundness: 0.2 },
+        }));
+
+        const container = document.getElementById('kg-network');
+        const network = new vis.Network(container, { nodes, edges }, {
+            physics: {
+                forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.005, springLength: 160 },
+                solver: 'forceAtlas2Based',
+                stabilization: { iterations: 150 },
+            },
+            interaction: { hover: true, tooltipDelay: 200, zoomView: true, dragView: true },
+            layout: { improvedLayout: true },
+        });
+    }
+</script>
+{% endblock %}

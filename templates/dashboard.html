@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">📊</div>
+    <h1 class="page-title"><span class="gradient-text">Learning Dashboard</span></h1>
+    <p class="page-subtitle">Track your study activity and learning insights</p>
+</section>
+
+<section class="dashboard-grid">
+    <!-- Stats Row -->
+    <div class="dash-stats-row">
+        <div class="dash-stat-card">
+            <div class="dash-stat-icon">📖</div>
+            <div class="dash-stat-value" id="stat-text">0</div>
+            <div class="dash-stat-label">Text Explanations</div>
+        </div>
+        <div class="dash-stat-card">
+            <div class="dash-stat-icon">⚡</div>
+            <div class="dash-stat-value" id="stat-code">0</div>
+            <div class="dash-stat-label">Code Snippets</div>
+        </div>
+        <div class="dash-stat-card">
+            <div class="dash-stat-icon">🎵</div>
+            <div class="dash-stat-value" id="stat-audio">0</div>
+            <div class="dash-stat-label">Audio Lessons</div>
+        </div>
+        <div class="dash-stat-card">
+            <div class="dash-stat-icon">🖼️</div>
+            <div class="dash-stat-value" id="stat-visual">0</div>
+            <div class="dash-stat-label">Visuals Created</div>
+        </div>
+        <div class="dash-stat-card">
+            <div class="dash-stat-icon">🧪</div>
+            <div class="dash-stat-value" id="stat-quiz">0</div>
+            <div class="dash-stat-label">Quizzes Taken</div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="dash-charts-row">
+        <div class="dash-chart-card">
+            <h3 class="dash-card-title">Weekly Activity</h3>
+            <canvas id="activity-chart" height="280"></canvas>
+        </div>
+        <div class="dash-chart-card">
+            <h3 class="dash-card-title">Modality Usage</h3>
+            <canvas id="modality-chart" height="280"></canvas>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="dash-recent-card">
+        <h3 class="dash-card-title">Recent Topics</h3>
+        <div class="dash-recent-list" id="recent-topics">
+            <div class="dash-empty-state" id="dash-empty">
+                <p>Start learning to see your activity here!</p>
+                <a href="/" class="btn btn-primary" style="margin-top: var(--space-md);">Explore Modalities</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const chartColors = {
+        pink: 'rgba(244, 114, 182, 0.7)',
+        purple: 'rgba(167, 139, 250, 0.7)',
+        teal: 'rgba(78, 206, 196, 0.7)',
+        gold: 'rgba(245, 197, 66, 0.7)',
+        coral: 'rgba(255, 107, 107, 0.7)',
+    };
+
+    let activityChart, modalityChart;
+
+    async function loadDashboard() {
+        try {
+            const res = await fetch('/api/usage-stats');
+            const stats = await res.json();
+
+            // Update stat cards
+            const mc = stats.modality_counts || {};
+            document.getElementById('stat-text').textContent = mc.text || 0;
+            document.getElementById('stat-code').textContent = mc.code || 0;
+            document.getElementById('stat-audio').textContent = mc.audio || 0;
+            document.getElementById('stat-visual').textContent = mc.visual || 0;
+            document.getElementById('stat-quiz').textContent = mc.quiz || 0;
+
+            // Recent topics
+            const recent = stats.recent || [];
+            const list = document.getElementById('recent-topics');
+            const empty = document.getElementById('dash-empty');
+
+            if (recent.length > 0) {
+                empty.style.display = 'none';
+                const icons = { text: '📖', code: '⚡', audio: '🎵', visual: '🖼️', quiz: '🧪', chat: '💬', graph: '🕸️' };
+                list.innerHTML = recent.slice(0, 10).map(item => `
+                <div class="recent-item">
+                    <span class="recent-icon">${icons[item.modality] || '📚'}</span>
+                    <span class="recent-topic">${item.topic}</span>
+                    <span class="recent-time">${new Date(item.created_at).toLocaleDateString()}</span>
+                </div>
+            `).join('');
+            }
+
+            // Weekly chart
+            const weeklyData = stats.weekly || [0, 0, 0, 0, 0, 0, 0];
+            if (activityChart) activityChart.destroy();
+            activityChart = new Chart(document.getElementById('activity-chart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                    datasets: [{
+                        label: 'Sessions',
+                        data: weeklyData,
+                        backgroundColor: [
+                            chartColors.coral, chartColors.pink, chartColors.purple, chartColors.teal,
+                            chartColors.gold, chartColors.coral, chartColors.pink
+                        ],
+                        borderRadius: 8, borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7b728e' } },
+                        x: { grid: { display: false }, ticks: { color: '#7b728e' } },
+                    }
+                }
+            });
+
+            // Modality chart
+            if (modalityChart) modalityChart.destroy();
+            modalityChart = new Chart(document.getElementById('modality-chart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Text', 'Code', 'Audio', 'Visual', 'Quiz'],
+                    datasets: [{
+                        data: [mc.text || 0, mc.code || 0, mc.audio || 0, mc.visual || 0, mc.quiz || 0],
+                        backgroundColor: [chartColors.pink, chartColors.teal, chartColors.coral, chartColors.purple, chartColors.gold],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#aa9ebc', padding: 16, usePointStyle: true, pointStyle: 'circle' } }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Failed to load dashboard stats', err);
+        }
+    }
+
+    loadDashboard();
+</script>
+{% endblock %}

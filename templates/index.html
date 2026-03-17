@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">AI-Powered Education</div>
+        <h1 class="hero-title">Learn Anything with <span class="gradient-text">LearnSphere</span></h1>
+        <p class="hero-subtitle">Experience personalized learning powered by Google Gemini AI. Choose your preferred
+            modality and master any topic.</p>
+        <div class="hero-actions">
+            <a href="{{ url_for('text_explanation') }}" class="btn btn-primary">Start Learning</a>
+            <a href="#modalities" class="btn btn-secondary">Explore Modalities</a>
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="floating-card card-1">📚 Text</div>
+        <div class="floating-card card-2">💻 Code</div>
+        <div class="floating-card card-3">🎧 Audio</div>
+        <div class="floating-card card-4">🎨 Visual</div>
+    </div>
+</section>
+
+<section id="modalities" class="modalities-section">
+    <div class="section-header">
+        <h2 class="section-title">Choose Your Learning Style</h2>
+        <p class="section-subtitle">Four powerful modalities to match how you learn best</p>
+    </div>
+    <div class="modalities-grid">
+        <a href="{{ url_for('text_explanation') }}" class="modality-card">
+            <div class="modality-icon">📚</div>
+            <h3 class="modality-title">Text Explanation</h3>
+            <p class="modality-desc">Get comprehensive, well-structured explanations on any topic with adjustable depth
+                levels.</p>
+            <span class="modality-action">Explore →</span>
+        </a>
+        <a href="{{ url_for('code_generation') }}" class="modality-card">
+            <div class="modality-icon">💻</div>
+            <h3 class="modality-title">Code Generation</h3>
+            <p class="modality-desc">Generate production-ready code with detailed comments, dependencies, and execution
+                instructions.</p>
+            <span class="modality-action">Generate →</span>
+        </a>
+        <a href="{{ url_for('audio_learning') }}" class="modality-card">
+            <div class="modality-icon">🎧</div>
+            <h3 class="modality-title">Audio Learning</h3>
+            <p class="modality-desc">Listen to AI-generated audio explanations perfect for learning on the go.</p>
+            <span class="modality-action">Listen →</span>
+        </a>
+        <a href="{{ url_for('image_visualization') }}" class="modality-card">
+            <div class="modality-icon">🎨</div>
+            <h3 class="modality-title">Visual Learning</h3>
+            <p class="modality-desc">Understand complex concepts through AI-generated visual diagrams and illustrations.
+            </p>
+            <span class="modality-action">Visualize →</span>
+        </a>
+        <a href="{{ url_for('quiz') }}" class="modality-card">
+            <div class="modality-icon">🧪</div>
+            <h3 class="modality-title">Interactive Quiz</h3>
+            <p class="modality-desc">Test your knowledge with AI-generated quizzes. Multiple difficulty levels with
+                instant feedback.</p>
+            <span class="modality-action">Start Quiz →</span>
+        </a>
+        <a href="{{ url_for('chat') }}" class="modality-card">
+            <div class="modality-icon">💬</div>
+            <h3 class="modality-title">Ask Your Notes</h3>
+            <p class="modality-desc">Upload PDFs and ask questions grounded in your own study material with RAG-powered
+                AI.</p>
+            <span class="modality-action">Start Chat →</span>
+        </a>
+        <a href="{{ url_for('knowledge_graph') }}" class="modality-card">
+            <div class="modality-icon">🕸️</div>
+            <h3 class="modality-title">Knowledge Graph</h3>
+            <p class="modality-desc">Visualize concept relationships with AI-generated interactive knowledge maps.</p>
+            <span class="modality-action">Explore →</span>
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="modality-card">
+            <div class="modality-icon">📊</div>
+            <h3 class="modality-title">Dashboard</h3>
+            <p class="modality-desc">Track your learning activity, favorite topics, and usage stats over time.</p>
+            <span class="modality-action">View Stats →</span>
+        </a>
+    </div>
+</section>
+
+<section class="features-section">
+    <div class="section-header">
+        <h2 class="section-title">Why LearnSphere?</h2>
+    </div>
+    <div class="features-grid">
+        <div class="feature-item">
+            <div class="feature-icon">🚀</div>
+            <h4>Instant Generation</h4>
+            <p>Get educational content in seconds powered by Gemini AI</p>
+        </div>
+        <div class="feature-item">
+            <div class="feature-icon">🎯</div>
+            <h4>Personalized Depth</h4>
+            <p>Choose complexity levels that match your expertise</p>
+        </div>
+        <div class="feature-item">
+            <div class="feature-icon">📱</div>
+            <h4>Multi-Device</h4>
+            <p>Learn seamlessly across all your devices</p>
+        </div>
+        <div class="feature-item">
+            <div class="feature-icon">💾</div>
+            <h4>Download & Share</h4>
+            <p>Export code and content for offline use</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

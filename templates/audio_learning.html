@@ -1,0 +1,951 @@
+{% extends 'base.html' %}
+
+{% block title %}Audio Learning{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">🎧</div>
+    <h1 class="page-title"><span class="gradient-text">Real-Time Audio Learning</span></h1>
+    <p class="page-subtitle">AI generates and speaks your lesson in real-time — no waiting</p>
+</section>
+
+<section class="generator-section">
+    <div class="generator-card">
+        <div class="rl-visual">
+            <div class="rl-visual-bg"></div>
+            <div id="avatar-container" class="avatar-container"></div>
+            <div class="rl-waveform" id="rl-waveform"></div>
+            <div id="avatar-status" class="avatar-status">AI Tutor Offline</div>
+        </div>
+
+        <form id="audio-form" class="generator-form">
+            <div class="form-group">
+                <label for="topic">What would you like to learn about?</label>
+                <div class="input-group-voice">
+                    <input type="text" id="topic" name="topic" placeholder="Type a topic or use the mic..." required>
+                    <button type="button" id="mic-btn" class="mic-btn" title="Speak your request">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                            <path
+                                d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                        </svg>
+                    </button>
+                    <div id="voice-indicator" class="voice-indicator hidden">
+                        <div class="v-bar"></div>
+                        <div class="v-bar"></div>
+                        <div class="v-bar"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Narration Style</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="style" value="conversational" checked>
+                        <span class="radio-label">Conversational</span>
+                        <span class="radio-desc">Friendly tone</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="style" value="formal">
+                        <span class="radio-label">Formal</span>
+                        <span class="radio-desc">Academic style</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="style" value="storytelling">
+                        <span class="radio-label">Storytelling</span>
+                        <span class="radio-desc">Narrative approach</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                <span class="btn-text">🎙️ Start Real-Time Lesson</span>
+                <span class="btn-loader"></span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Live Player -->
+    <div id="live-player" class="rl-player hidden">
+        <!-- Status bar -->
+        <div class="rl-status-bar">
+            <div class="rl-status-indicator">
+                <span class="rl-pulse"></span>
+                <span id="rl-status-text">Connecting...</span>
+            </div>
+            <div class="rl-badges">
+                <div class="rl-status-info">
+                    <div class="rl-pulse"></div>
+                    <span id="rl-status-text">Ready to learn?</span>
+                </div>
+                <div class="rl-word-count" id="rl-word-count">0 words</div>
+            </div>
+
+            <!-- Custom Avatar Upload -->
+            <div class="avatar-upload-container">
+                <label for="avatar-upload" class="avatar-upload-label" title="Upload your own 3D Avatar (.glb)">
+                    📂 Custom Model
+                </label>
+                <input type="file" id="avatar-upload" accept=".glb" style="display: none;">
+            </div>
+
+            <!-- Controls -->
+            <div class="rl-controls">
+                <button id="rl-pause" class="rl-play-btn" title="Pause / Resume">
+                    <svg id="rl-icon-pause" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="5" y="3" width="4" height="18"></rect>
+                        <rect x="15" y="3" width="4" height="18"></rect>
+                    </svg>
+                    <svg id="rl-icon-play" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"
+                        class="hidden">
+                        <polygon points="6 3 20 12 6 21 6 3"></polygon>
+                    </svg>
+                </button>
+                <button id="rl-stop" class="rl-ctrl-btn" title="Stop">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                    </svg>
+                </button>
+                <div class="rl-speed-wrap">
+                    <button id="rl-speed" class="rl-speed-btn">1×</button>
+                </div>
+            </div>
+
+            <!-- Live Script -->
+            <div class="rl-script">
+                <div class="rl-script-head">
+                    <h3>📝 Live Script</h3>
+                    <div style="display:flex;gap:8px">
+                        <button id="rl-copy" class="rl-action-btn" type="button">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="rl-script-body" class="rl-script-body">
+                    <span class="rl-cursor-blink"></span>
+                </div>
+            </div>
+        </div>
+</section>
+
+<style>
+    /* ════════════════════════════════════════════
+       REAL-TIME AUDIO PLAYER – Streaming Design
+       ════════════════════════════════════════════ */
+
+    .rl-player {
+        margin-top: 28px;
+        background: linear-gradient(145deg, rgba(20, 18, 30, 0.7), rgba(12, 12, 18, 0.85));
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(244, 114, 182, 0.12);
+        border-radius: var(--radius-xl);
+        padding: 28px;
+        box-shadow: var(--shadow-lg), 0 0 60px rgba(244, 114, 182, 0.04);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rl-player::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 10%;
+        right: 10%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent-teal), var(--accent-blue), var(--accent-lavender), transparent);
+        opacity: 0.6;
+    }
+
+    /* ── Status Bar ── */
+    .rl-status-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .rl-status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    .rl-pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f472b6;
+        animation: rl-pulse-anim 1.5s ease-in-out infinite;
+    }
+
+    .rl-pulse.done {
+        background: #34d399;
+        animation: none;
+    }
+
+    @keyframes rl-pulse-anim {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.5;
+            transform: scale(0.8);
+        }
+    }
+
+    .rl-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .rl-badge-stat {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(167, 139, 250, 0.1);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        color: #c4b5fd;
+    }
+
+    /* ── Waveform Visualizer ── */
+    .rl-visual {
+        height: 350px;
+        /* Increased for better model view */
+        margin-bottom: 20px;
+        background: radial-gradient(circle at center, rgba(167, 139, 250, 0.05) 0%, transparent 70%);
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+        position: relative;
+        /* Added to fix absolute positioning of avatar */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rl-visual-bg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(20, 16, 30, 0.8) 0%, rgba(8, 8, 12, 0.9) 50%, rgba(30, 15, 25, 0.7) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: inherit;
+    }
+
+    .rl-waveform {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 100%;
+        padding: 20px 12px;
+        z-index: 1;
+        width: 100%;
+    }
+
+    .rl-waveform .bar {
+        flex: 1;
+        background: linear-gradient(180deg, var(--accent-teal), var(--accent-blue));
+        border-radius: 2px;
+        min-height: 4px;
+        height: 6px;
+        transition: height 0.12s ease;
+        opacity: 0.35;
+    }
+
+    .rl-waveform.speaking .bar {
+        animation: rl-bar-dance 0.6s ease-in-out infinite alternate;
+        opacity: 0.85;
+    }
+
+    @keyframes rl-bar-dance {
+        0% {
+            transform: scaleY(0.3);
+        }
+
+        100% {
+            transform: scaleY(1);
+        }
+    }
+
+    .rl-now-label {
+        position: absolute;
+        bottom: 8px;
+        left: 14px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent-teal);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        z-index: 2;
+        opacity: 0.8;
+    }
+
+    /* ── Controls ── */
+    .rl-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    .rl-play-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-teal), var(--accent-blue));
+        border: none;
+        color: #08080c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s var(--ease-out);
+        box-shadow: 0 4px 24px rgba(244, 114, 182, 0.3);
+    }
+
+    .rl-play-btn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 32px rgba(244, 114, 182, 0.4);
+    }
+
+    .rl-ctrl-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.25s var(--ease-out);
+    }
+
+    .rl-ctrl-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--text-primary);
+        transform: scale(1.08);
+    }
+
+    .rl-speed-btn {
+        padding: 4px 12px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .rl-speed-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+
+    /* ── Script Area ── */
+    .rl-script {
+        background: linear-gradient(145deg, rgba(20, 18, 30, 0.5), rgba(12, 12, 18, 0.7));
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .rl-script-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .rl-script-head h3 {
+        margin: 0;
+        font-size: 16px;
+        color: var(--text-primary);
+    }
+
+    .rl-script-body {
+        font-size: 15px;
+        line-height: 1.9;
+        color: var(--text-secondary);
+        max-height: 350px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    /* Sentence highlighting – the sentence currently being spoken */
+    .rl-script-body .sentence {
+        transition: color 0.3s ease;
+    }
+
+    .rl-script-body .sentence.speaking {
+        color: var(--accent-teal);
+        font-weight: 600;
+    }
+
+    .rl-script-body .sentence.spoken {
+        color: var(--text-primary);
+    }
+
+    /* Blinking cursor at the end of streaming text */
+    .rl-cursor-blink {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: var(--accent-teal);
+        margin-left: 2px;
+        animation: rl-blink 1s step-end infinite;
+        vertical-align: text-bottom;
+    }
+
+    @keyframes rl-blink {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0;
+        }
+    }
+
+    .rl-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.25s var(--ease-out);
+        font-family: inherit;
+    }
+
+    .rl-action-btn:hover {
+        background: rgba(244, 114, 182, 0.1);
+        border-color: rgba(244, 114, 182, 0.25);
+        color: var(--accent-teal);
+        transform: translateY(-1px);
+    }
+
+    /* ── Voice UI Additions ── */
+    .input-group-voice {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mic-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .mic-btn:hover {
+        background: rgba(167, 139, 250, 0.15);
+        border-color: var(--accent-lavender);
+        color: var(--accent-lavender);
+        transform: scale(1.05);
+    }
+
+    .mic-btn.listening {
+        background: var(--accent-pink);
+        color: var(--bg-primary);
+        border-color: var(--accent-pink);
+        box-shadow: 0 0 20px rgba(244, 114, 182, 0.4);
+        animation: mic-pulse 1.5s infinite;
+    }
+
+    @keyframes mic-pulse {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.4);
+        }
+
+        70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(244, 114, 182, 0);
+        }
+
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(244, 114, 182, 0);
+        }
+    }
+
+    .voice-indicator {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 0 10px;
+    }
+
+    .v-bar {
+        width: 3px;
+        height: 12px;
+        background: var(--accent-teal);
+        border-radius: 2px;
+        animation: voice-bar 0.6s infinite alternate;
+    }
+
+    .v-bar:nth-child(2) {
+        animation-delay: 0.2s;
+        height: 18px;
+    }
+
+    .v-bar:nth-child(3) {
+        animation-delay: 0.4s;
+        height: 10px;
+    }
+
+    @keyframes voice-bar {
+        from {
+            transform: scaleY(0.5);
+            opacity: 0.4;
+        }
+
+        to {
+            transform: scaleY(1.3);
+            opacity: 1;
+        }
+    }
+
+    .rl-visual {
+        height: 350px;
+        /* Increased for better model view */
+        margin-bottom: 20px;
+        background: radial-gradient(circle at center, rgba(167, 139, 250, 0.05) 0%, transparent 70%);
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-upload-container {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 50;
+    }
+
+    .avatar-upload-label {
+        background: rgba(0, 0, 0, 0.5);
+        color: var(--text-secondary);
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.2s;
+    }
+
+    .avatar-upload-label:hover {
+        background: var(--accent-lavender);
+        color: #fff;
+    }
+
+    .avatar-status {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        background: rgba(0, 0, 0, 0.4);
+        padding: 4px 12px;
+        border-radius: 20px;
+        backdrop-filter: blur(4px);
+        z-index: 20;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .avatar-container {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+    }
+
+    @media (max-width: 600px) {
+        .rl-visual {
+            height: 220px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+<script src="{{ url_for('static', filename='js/voice_input.js') }}"></script>
+<script type="module">
+    import { LearnSphereAvatar } from "{{ url_for('static', filename='js/avatar.js') }}";
+
+    (function () {
+        /* ── DOM refs ── */
+        const form = document.getElementById('audio-form');
+        const player = document.getElementById('live-player');
+        const statusText = document.getElementById('rl-status-text');
+        const statusPulse = document.querySelector('.rl-pulse');
+        const wordCountEl = document.getElementById('rl-word-count');
+        const waveform = document.getElementById('rl-waveform');
+        const nowLabel = document.getElementById('rl-now-label');
+        const scriptBody = document.getElementById('rl-script-body');
+        const pauseBtn = document.getElementById('rl-pause');
+        const stopBtn = document.getElementById('rl-stop');
+        const speedBtn = document.getElementById('rl-speed');
+        const copyBtn = document.getElementById('rl-copy');
+        const iconPause = document.getElementById('rl-icon-pause');
+        const iconPlay = document.getElementById('rl-icon-play');
+
+        /* ── State ── */
+        let audioQueue = [];   // queue of audio chunks waiting to be played
+        let currentAudio = null; // currently playing Audio object
+        let isSpeaking = false;
+        let isPaused = false;
+        let isStopped = false;
+        let fullScript = '';
+        let speedIdx = 0;
+
+        /* ── Voice & Avatar Init ── */
+        // Avatar is now imported from module
+        const avatar = new LearnSphereAvatar('avatar-container');
+
+        // AudioAnalyzer and VoiceUI are global from voice_input.js
+        const analyzer = new window.AudioAnalyzer();
+        const voiceUI = new window.LearnSphereVoiceUI('mic-btn', 'topic', (text) => {
+            if (text.trim()) form.dispatchEvent(new Event('submit'));
+        });
+
+        const avatarStatus = document.getElementById('avatar-status');
+        if (avatarStatus) avatarStatus.textContent = 'AI Tutor Online';
+
+        // Custom Avatar Upload Handler
+        const avatarInput = document.getElementById('avatar-upload');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    avatar.loadModel(url);
+                    if (avatarStatus) avatarStatus.textContent = 'Custom Avatar Loaded';
+                }
+            });
+        }
+
+        /* ── Waveform bars ── */
+        (function initBars() {
+            const count = 50;
+            for (let i = 0; i < count; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.animationDelay = (Math.random() * 0.6).toFixed(2) + 's';
+                bar.style.height = (4 + Math.random() * 6) + 'px';
+                waveform.appendChild(bar);
+            }
+        })();
+
+        /* ── Form Submit ── */
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            startStreaming();
+        });
+
+        function startStreaming() {
+            const topic = document.getElementById('topic').value.trim();
+            const style = document.querySelector('input[name="style"]:checked').value;
+
+            if (!topic) return;
+
+            // Reset state
+            audioQueue = [];
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            isSpeaking = false;
+            isPaused = false;
+            isStopped = false;
+            fullScript = '';
+            wordCount = 0;
+            sentenceIndex = 0;
+
+            // Show player
+            player.classList.remove('hidden');
+
+            // Sync Avatar Size
+            if (avatar) avatar.onResize();
+
+            scriptBody.innerHTML = '<span class="rl-cursor-blink"></span>';
+            statusText.textContent = 'Connecting to Gemini...';
+            statusPulse.classList.remove('done');
+            nowLabel.textContent = 'Streaming...';
+            wordCountEl.textContent = '0 words';
+            waveform.classList.remove('speaking');
+            iconPause.classList.remove('hidden');
+            iconPlay.classList.add('hidden');
+
+            // Disable form
+            form.querySelector('button[type="submit"]').classList.add('loading');
+
+            // Track Usage
+            fetch('/api/track-usage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modality: 'audio', topic })
+            }).catch(() => { });
+
+            // Scroll to player
+            player.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Start SSE
+            const url = `/api/stream-audio?topic=${encodeURIComponent(topic)}&style=${encodeURIComponent(style)}`;
+            eventSource = new EventSource(url);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.error) {
+                    statusText.textContent = 'Error: ' + data.error;
+                    statusPulse.classList.add('done');
+                    eventSource.close();
+                    form.querySelector('button[type="submit"]').classList.remove('loading');
+                    return;
+                }
+
+                if (data.done) {
+                    statusText.textContent = 'Script complete — finishing speech...';
+                    eventSource.close();
+                    form.querySelector('button[type="submit"]').classList.remove('loading');
+
+                    // Remove cursor blink
+                    const cursor = scriptBody.querySelector('.rl-cursor-blink');
+                    if (cursor) cursor.remove();
+                    return;
+                }
+
+                if (data.text) {
+                    // Add text to script display
+                    fullScript += data.text + ' ';
+                    wordCount += data.text.split(/\s+/).filter(w => w).length;
+                    wordCountEl.textContent = wordCount + ' words';
+
+                    // Create sentence span in the script body
+                    const cursor = scriptBody.querySelector('.rl-cursor-blink');
+                    const span = document.createElement('span');
+                    span.className = 'sentence';
+                    span.dataset.idx = sentenceIndex;
+                    span.textContent = data.text + ' ';
+                    scriptBody.insertBefore(span, cursor);
+
+                    // Auto-scroll script
+                    scriptBody.scrollTop = scriptBody.scrollHeight;
+
+                    // Queue for speech if audio_url is present
+                    if (!isStopped && data.audio_url) {
+                        audioQueue.push({
+                            url: data.audio_url,
+                            idx: parseInt(span.dataset.idx)
+                        });
+                        processQueue();
+                    } else if (!isStopped && !data.audio_url) {
+                        // Fallback or empty audio? Just skip queue or handle error
+                        console.warn("No audio URL for chunk:", data.text);
+                    }
+
+                    sentenceIndex++;
+                    statusText.textContent = 'Streaming & speaking...';
+                }
+            };
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                statusText.textContent = fullScript ? 'Stream ended — finishing speech...' : 'Connection error';
+                form.querySelector('button[type="submit"]').classList.remove('loading');
+            };
+        }
+
+        /* ── Speech Queue Processor ── */
+        function processQueue() {
+            if (isSpeaking || isPaused || isStopped || audioQueue.length === 0) return;
+
+            const item = audioQueue.shift();
+
+            // Create audio object
+            const audio = new Audio(item.url);
+            audio.playbackRate = currentRate;
+            currentAudio = audio;
+
+            isSpeaking = true;
+            waveform.classList.add('speaking');
+            nowLabel.textContent = '🔊 Speaking...';
+
+            // Connect Avatar Reactivity
+            analyzer.onPlay(audio, (volume) => {
+                avatar.update(volume);
+            });
+
+            // Highlight current sentence
+            const sentenceEl = scriptBody.querySelector(`.sentence[data-idx="${item.idx}"]`);
+            if (sentenceEl) sentenceEl.classList.add('speaking');
+
+            audio.onended = () => {
+                isSpeaking = false;
+                currentAudio = null;
+                if (sentenceEl) {
+                    sentenceEl.classList.remove('speaking');
+                    sentenceEl.classList.add('spoken');
+                }
+
+                if (audioQueue.length === 0) {
+                    waveform.classList.remove('speaking');
+                    // Check if streaming is done
+                    if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+                        nowLabel.textContent = '✅ Complete';
+                        statusText.textContent = 'Lesson complete!';
+                        statusPulse.classList.add('done');
+                    } else {
+                        nowLabel.textContent = 'Waiting for next chunk...';
+                    }
+                }
+
+                // Process next chunk
+                processQueue();
+            };
+
+            audio.onerror = (e) => {
+                console.error("Audio playback error:", e);
+                isSpeaking = false;
+                currentAudio = null;
+                // Skip to next
+                processQueue();
+            };
+
+            // Start playback
+            audio.play().catch(e => {
+                console.error("Play failed:", e);
+                isSpeaking = false;
+                currentAudio = null;
+                processQueue();
+            });
+        }
+
+        /* ── Pause / Resume ── */
+        pauseBtn.addEventListener('click', () => {
+            if (isPaused) {
+                // Resume
+                if (currentAudio) currentAudio.play();
+                isPaused = false;
+                iconPause.classList.remove('hidden');
+                iconPlay.classList.add('hidden');
+                nowLabel.textContent = '🔊 Speaking...';
+                waveform.classList.add('speaking');
+
+                // If we weren't playing anything (e.g. paused between chunks), try processing queue
+                if (!currentAudio) processQueue();
+            } else {
+                // Pause
+                if (currentAudio) currentAudio.pause();
+                isPaused = true;
+                iconPause.classList.add('hidden');
+                iconPlay.classList.remove('hidden');
+                nowLabel.textContent = '⏸️ Paused';
+                waveform.classList.remove('speaking');
+            }
+        });
+
+        /* ── Stop ── */
+        stopBtn.addEventListener('click', () => {
+            isStopped = true;
+            audioQueue = [];
+
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            waveform.classList.remove('speaking');
+            nowLabel.textContent = '⏹️ Stopped';
+            statusText.textContent = isSpeaking ? 'Stopped' : statusText.textContent;
+            isSpeaking = false;
+
+            if (eventSource) {
+                eventSource.close();
+            }
+            form.querySelector('button[type="submit"]').classList.remove('loading');
+
+            // Remove cursor
+            const cursor = scriptBody.querySelector('.rl-cursor-blink');
+            if (cursor) cursor.remove();
+        });
+
+        /* ── Speed ── */
+        speedBtn.addEventListener('click', () => {
+            speedIdx = (speedIdx + 1) % speeds.length;
+            currentRate = speeds[speedIdx];
+            speedBtn.textContent = currentRate + '×';
+            if (currentAudio) currentAudio.playbackRate = currentRate;
+        });
+
+        /* ── Copy ── */
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(fullScript.trim());
+            if (typeof showToast === 'function') showToast('Script copied!');
+            else alert('Copied!');
+        });
+
+    })();
+</script>
+{% endblock %}

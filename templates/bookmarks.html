@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Bookmarks{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">⭐</div>
+    <h1 class="page-title"><span class="gradient-text">My Bookmarks</span></h1>
+    <p class="page-subtitle">Your saved explanations, code, and learning content</p>
+</section>
+
+<section class="bookmarks-section">
+    <div class="bookmarks-toolbar">
+        <div class="bookmark-filters">
+            <button class="bm-filter active" data-type="all">All</button>
+            <button class="bm-filter" data-type="text">📖 Text</button>
+            <button class="bm-filter" data-type="code">⚡ Code</button>
+            <button class="bm-filter" data-type="audio">🎵 Audio</button>
+            <button class="bm-filter" data-type="visual">🖼️ Visual</button>
+            <button class="bm-filter" data-type="quiz">🧪 Quiz</button>
+        </div>
+        <div class="bookmark-search">
+            <input type="text" id="bm-search" placeholder="Search bookmarks..." class="form-input-sm">
+        </div>
+    </div>
+
+    <div id="bookmarks-grid" class="bookmarks-grid">
+        <div class="dash-empty-state" id="bm-empty">
+            <p>No bookmarks yet. Save content from any modality to see it here!</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allBookmarks = [];
+
+    async function loadBookmarks(type = null) {
+        try {
+            const url = type && type !== 'all' ? `/api/bookmarks?type=${type}` : '/api/bookmarks';
+            const res = await fetch(url);
+            const data = await res.json();
+            allBookmarks = data.bookmarks || [];
+            renderBookmarks(allBookmarks);
+        } catch (err) {
+            console.error('Failed to load bookmarks', err);
+        }
+    }
+
+    function renderBookmarks(bookmarks) {
+        const grid = document.getElementById('bookmarks-grid');
+        const empty = document.getElementById('bm-empty');
+
+        if (bookmarks.length === 0) {
+            grid.innerHTML = '';
+            grid.appendChild(empty);
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+        const icons = { text: '📖', code: '⚡', audio: '🎵', visual: '🖼️', quiz: '🧪', chat: '💬' };
+
+        grid.innerHTML = bookmarks.map(bm => `
+        <div class="bookmark-card" data-id="${bm.id}" data-type="${bm.type}">
+            <div class="bm-card-header">
+                <span class="bm-icon">${icons[bm.type] || '📚'}</span>
+                <span class="bm-type">${bm.type}</span>
+                <button class="bm-delete" onclick="deleteBookmark(${bm.id})" title="Remove">✕</button>
+            </div>
+            <h3 class="bm-topic">${bm.topic}</h3>
+            <p class="bm-preview">${bm.content.substring(0, 150)}${bm.content.length > 150 ? '...' : ''}</p>
+            <div class="bm-footer">
+                <span class="bm-date">${new Date(bm.created_at).toLocaleDateString()}</span>
+                <button class="bm-copy" onclick="copyContent(this, ${bm.id})" title="Copy">📋</button>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    async function deleteBookmark(id) {
+        try {
+            await fetch(`/api/bookmark/${id}`, { method: 'DELETE' });
+            loadBookmarks();
+        } catch (err) {
+            console.error('Failed to delete bookmark', err);
+        }
+    }
+
+    function copyContent(btn, id) {
+        const bm = allBookmarks.find(b => b.id === id);
+        if (bm) {
+            navigator.clipboard.writeText(bm.content);
+            btn.textContent = '✓';
+            setTimeout(() => btn.textContent = '📋', 1500);
+        }
+    }
+
+    // Filter buttons
+    document.querySelectorAll('.bm-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.bm-filter').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadBookmarks(btn.dataset.type);
+        });
+    });
+
+    // Search
+    document.getElementById('bm-search').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        const filtered = allBookmarks.filter(bm =>
+            bm.topic.toLowerCase().includes(q) || bm.content.toLowerCase().includes(q)
+        );
+        renderBookmarks(filtered);
+    });
+
+    // Initial load
+    loadBookmarks();
+</script>
+{% endblock %}

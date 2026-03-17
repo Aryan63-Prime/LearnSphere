@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% block title %}Text Explanation{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-icon">📚</div>
+    <h1 class="page-title"><span class="gradient-text">Text Explanation</span></h1>
+    <p class="page-subtitle">Get comprehensive, AI-powered explanations on any topic</p>
+</section>
+
+<section class="generator-section">
+    <div class="generator-card">
+        <form id="text-form" class="generator-form">
+            <div class="form-group">
+                <label for="topic">What would you like to learn?</label>
+                <input type="text" id="topic" name="topic"
+                    placeholder="e.g., neural networks, quantum computing, machine learning..." required>
+            </div>
+            <div class="form-group">
+                <label for="depth">Explanation Depth</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="depth" value="brief">
+                        <span class="radio-label">Brief</span>
+                        <span class="radio-desc">Quick overview</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="depth" value="comprehensive" checked>
+                        <span class="radio-label">Comprehensive</span>
+                        <span class="radio-desc">Detailed coverage</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="depth" value="detailed">
+                        <span class="radio-label">In-Depth</span>
+                        <span class="radio-desc">Technical deep-dive</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="language">Response Language</label>
+                <select id="language" name="language" class="form-select">
+                    <option value="English" selected>🇬🇧 English</option>
+                    <option value="Hindi">🇮🇳 Hindi</option>
+                    <option value="Spanish">🇪🇸 Spanish</option>
+                    <option value="French">🇫🇷 French</option>
+                    <option value="German">🇩🇪 German</option>
+                    <option value="Japanese">🇯🇵 Japanese</option>
+                    <option value="Chinese">🇨🇳 Chinese</option>
+                    <option value="Arabic">🇸🇦 Arabic</option>
+                    <option value="Portuguese">🇧🇷 Portuguese</option>
+                    <option value="Korean">🇰🇷 Korean</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+                <span class="btn-text">Generate Explanation</span>
+                <span class="btn-loader"></span>
+            </button>
+        </form>
+    </div>
+
+    <div id="result-container" class="result-container hidden">
+        <div class="result-header">
+            <h2>Generated Explanation</h2>
+            <div class="result-meta">
+                <span id="api-info" class="api-badge"></span>
+                <button id="copy-btn" class="text-action-btn" title="Copy to clipboard">📋</button>
+                <button id="export-ppt-btn" class="text-action-btn" title="Export as PPT"
+                    style="display:none;">📊</button>
+                <button id="bookmark-btn" class="text-action-btn" title="Bookmark" style="display:none;">⭐</button>
+            </div>
+        </div>
+        <div id="result-content" class="result-content markdown-body"></div>
+    </div>
+</section>
+
+<style>
+    .text-action-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s var(--ease-out);
+    }
+
+    .text-action-btn:hover {
+        background: rgba(244, 114, 182, 0.12);
+        border-color: rgba(244, 114, 182, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(244, 114, 182, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let eventSource = null;
+
+    document.getElementById('text-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const resultContainer = document.getElementById('result-container');
+        const resultContent = document.getElementById('result-content');
+        const apiInfo = document.getElementById('api-info');
+
+        // Reset UI
+        if (eventSource) eventSource.close();
+        btn.classList.add('loading');
+        resultContainer.classList.remove('hidden');
+        resultContent.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+
+        const topic = document.getElementById('topic').value;
+        const depth = document.querySelector('input[name="depth"]:checked').value;
+        const language = document.getElementById('language').value;
+        let fullText = '';
+        let startTime = Date.now();
+
+        // Start SSE
+        const url = `/api/stream-text?topic=${encodeURIComponent(topic)}&depth=${encodeURIComponent(depth)}&language=${encodeURIComponent(language)}`;
+        eventSource = new EventSource(url);
+
+        // Clear loading indicator on first message
+        let firstChunk = true;
+
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.error) {
+                showError(data.error);
+                eventSource.close();
+                btn.classList.remove('loading');
+                return;
+            }
+
+            if (data.done) {
+                eventSource.close();
+                btn.classList.remove('loading');
+                const time = ((Date.now() - startTime) / 1000).toFixed(2);
+                apiInfo.innerHTML = `⚡ Gemini 2.5 Flash • ${time}s`;
+                apiInfo.className = 'api-badge gemini';
+                document.getElementById('export-ppt-btn').style.display = 'flex';
+                document.getElementById('bookmark-btn').style.display = 'flex';
+                // Track usage
+                fetch('/api/track-usage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modality: 'text', topic })
+                }).catch(() => { });
+                return;
+            }
+
+            if (data.text) {
+                if (firstChunk) {
+                    resultContent.innerHTML = '';
+                    firstChunk = false;
+                }
+                fullText += data.text;
+                // Render markdown
+                resultContent.innerHTML = marked.parse(fullText);
+
+                // Update stats in real-time
+                const time = ((Date.now() - startTime) / 1000).toFixed(1);
+                apiInfo.innerHTML = `⚡ Generating... ${time}s`;
+                apiInfo.className = 'api-badge gemini';
+            }
+        };
+
+        eventSource.onerror = () => {
+            eventSource.close();
+            btn.classList.remove('loading');
+            if (!fullText) showError('Connection failed');
+        };
+    });
+
+    document.getElementById('copy-btn').addEventListener('click', () => {
+        const content = document.getElementById('result-content').innerText;
+        navigator.clipboard.writeText(content);
+        if (typeof showToast === 'function') showToast('Copied to clipboard!');
+        else alert('Copied!');
+    });
+
+    document.getElementById('export-ppt-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('topic').value;
+        const content = document.getElementById('result-content').innerText;
+        const btn = document.getElementById('export-ppt-btn');
+
+        btn.textContent = '⏳';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/export-ppt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic, content, modality: 'text' })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                window.location.href = `/api/download/${data.filename}`;
+                if (typeof showToast === 'function') showToast('PPT downloaded!');
+            } else {
+                if (typeof showToast === 'function') showToast(data.error, 'error');
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('Export failed', 'error');
+        }
+
+        btn.textContent = '📊';
+        btn.disabled = false;
+    });
+
+    document.getElementById('bookmark-btn').addEventListener('click', async () => {
+        const topic = document.getElementById('topic').value;
+        const content = document.getElementById('result-content').innerText;
+        const bmBtn = document.getElementById('bookmark-btn');
+
+        try {
+            const res = await fetch('/api/bookmark', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'text', topic, content })
+            });
+            const data = await res.json();
+            if (data.success) {
+                bmBtn.textContent = '✅';
+                setTimeout(() => bmBtn.textContent = '⭐', 2000);
+            }
+        } catch (err) {
+            console.error('Bookmark failed', err);
+        }
+    });
+
+    function showError(msg) {
+        const rc = document.getElementById('result-content');
+        rc.innerHTML = `<div class="error-msg">⚠️ ${msg}</div>`;
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
